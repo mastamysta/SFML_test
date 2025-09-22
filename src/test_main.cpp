@@ -4,13 +4,20 @@
 #include <algorithm>
 #include <ranges>
 #include <cmath>
+#include <thread>
+#include <deque>
 
 #include <SFML/Graphics.hpp>
 
 class PlotWindow
 {
 private:
+    using PlotScalarType = float;
+    using DataPointType = std::pair<PlotScalarType, PlotScalarType>;
+    using ContainerType = std::deque<DataPointType>;
+
     sf::RenderWindow m_window;
+    const ContainerType& m_data;
 
     enum class KeyEventKind
     {
@@ -34,46 +41,44 @@ private:
     {
     }
 
-    template <int ArraySize>
-    auto draw_data(const std::array<std::pair<float, float>, ArraySize>& plot_data)
+    auto draw_data()
     {
-        auto max_x = std::numeric_limits<float>::min();
-        auto max_y = std::numeric_limits<float>::min();
+        const auto [max_x, max_y] = std::ranges::fold_right(m_data,
+                                                      DataPointType{std::numeric_limits<PlotScalarType>::min(),
+                                                                    std::numeric_limits<PlotScalarType>::min()},
+                                                      [](auto foldin, auto maxs)
+                                                      { return DataPointType{std::max(maxs.first, foldin.first),
+                                                                             std::max(maxs.second, foldin.second)}; });
 
-        for (int i = 0; i < plot_data.size(); i++)
-        {
-            max_x = std::max(max_x, plot_data[i].first);
-            max_y = std::max(max_y, plot_data[i].second);
-        }
-
-        auto data = std::array<sf::Vertex, ArraySize>{};
+        auto vertex_buffer = std::vector<sf::Vertex>{};
+        vertex_buffer.resize(m_data.size());
         auto win_height = m_window.getSize().y;
         auto win_width = m_window.getSize().x;
 
-        for (int i = 0; i < plot_data.size(); i++)
+        for (const auto& [index, data_pair]: std::views::enumerate(m_data))
         {
-            data[i].position = {(plot_data[i].first / max_x) * win_width, 
-                                win_height - ((plot_data[i].second / max_y) * win_height)};
+            vertex_buffer[index].position = {(data_pair.first / max_x) * win_width, 
+                                win_height - ((data_pair.second / max_y) * win_height)};
         }
 
-        m_window.draw(data.data(), data.size(), sf::PrimitiveType::Lines);
+        m_window.draw(vertex_buffer.data(), vertex_buffer.size(), sf::PrimitiveType::Points);
     }
 
-    auto render(const auto& data)
+    auto render()
     {
         m_window.clear();
-        draw_data(data);
+        draw_data();
         m_window.display();
     }
 
 public:
-    explicit PlotWindow():
-        m_window(sf::VideoMode({640, 480}), "SFMLDemo")
+    explicit PlotWindow(const ContainerType& initial_data):
+        m_window(sf::VideoMode({640, 480}), "SFMLDemo"),
+        m_data(initial_data)
     {
     }
 
-
-    auto run(const auto& data)
+    auto run()
     {   
         auto clock = sf::Clock{};
 
@@ -81,24 +86,38 @@ public:
         {
             handle_events();
             update_state(clock.restart());
-            render(data);
+            render();
         }
     }
 };
 
 int main(int argc, const char *argv[])
 {
-    std::println("{} hello world!", 5);
-
-    auto data = std::array<std::pair<float, float>, 10000>{};
+    auto data = std::deque<std::pair<float, float>>{};
+    data.resize(10000);
 
     for (float i = 0; i < data.size(); i++)
     {
         data[i] = {i, i * i / 27};
     }
 
-    auto plot = PlotWindow{};
-    plot.run(data);
+    auto plot = PlotWindow{data};
+    plot.run();
+    // auto run_wrapper = [&plot]()
+    // {
+    //     plot.run();
+    // };
+
+    // auto plot_thread = std::thread{run_wrapper};
+    // plot_thread.detach();
+
+    // for (int i = 0; i < 10000; i++)
+    // {
+    //     std::this_thread::sleep_for(std::chrono::milliseconds(2));
+
+    // }
+
+
 
     std::println("Program exited.");
 }
