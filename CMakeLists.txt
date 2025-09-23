@@ -17,3 +17,4 @@ FetchContent_MakeAvailable(SFML)
 
 add_executable(main src/test_main.cpp)
 target_link_libraries(main PRIVATE SFML::Graphics)
+target_include_directories(main PRIVATE ./include)
