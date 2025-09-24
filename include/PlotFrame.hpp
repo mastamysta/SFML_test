@@ -7,51 +7,87 @@
 #include <deque>
 #include <mutex>
 #include <type_traits>
+#include <cstddef>
 
 #include <SFML/Graphics.hpp>
 
 template <typename PlotScalarType>
 class PlotFrame: public sf::Drawable
 {
+public:
+    using DataPointType = std::pair<PlotScalarType, PlotScalarType>;
+    using ContainerType = std::deque<DataPointType>;
+
+    enum class HorizontalScalingMode
+    {
+        FIT_TO_MINIMUM,
+        FIT_TO_ORIGIN
+    };
+
+    PlotFrame(std::pair<std::size_t, std::size_t>,
+              std::pair<std::size_t, std::size_t>,
+              HorizontalScalingMode);
+
+    auto update_data(const ContainerType &data);
+
 private:
-    // TODO: m_vertex_buffer is not thread safe, but we cannot grab a mutex in draw() because
-    // it is inherited as `const`. Find a way to safely copy data across.
     std::vector<sf::Vertex> m_vertex_buffer;
-    std::size_t m_width;
-    std::size_t m_height;
+    std::pair<std::size_t, std::size_t> m_dimensions;
+    std::pair<std::size_t, std::size_t> m_position;
+    HorizontalScalingMode m_horizontal_scale_mode;
 
     auto draw(sf::RenderTarget& target, sf::RenderStates states) const
     {
         target.draw(m_vertex_buffer.data(), m_vertex_buffer.size(), sf::PrimitiveType::Points);
     }
-
-public:
-    using DataPointType = std::pair<PlotScalarType, PlotScalarType>;
-    using ContainerType = std::deque<DataPointType>;
-
-    PlotFrame(std::size_t width, std::size_t height): 
-        m_width(width), 
-        m_height(height)
-    {
-    }
-
-    auto update_data(const ContainerType& data)
-    {
-        const auto [max_x, max_y] = std::ranges::fold_right(data,
-                                                      DataPointType{std::numeric_limits<PlotScalarType>::min(),
-                                                                    std::numeric_limits<PlotScalarType>::min()},
-                                                      [](auto foldin, auto maxs)
-                                                      { return DataPointType{std::max(maxs.first, foldin.first),
-                                                                             std::max(maxs.second, foldin.second)}; });
-
-        m_vertex_buffer = std::vector<sf::Vertex>(data.size());
-        auto win_height = static_cast<float>(m_height);
-        auto win_width = static_cast<float>(m_width);
-
-        for (const auto& [index, data_pair]: std::views::enumerate(data))
-        {
-            m_vertex_buffer[index].position = {(static_cast<float>(data_pair.first) / static_cast<float>(max_x)) * win_width, 
-                                win_height - ((static_cast<float>(data_pair.second) / static_cast<float>(max_y)) * win_height)};
-        }
-    }
 };
+
+template <typename PlotScalarType>
+inline PlotFrame<PlotScalarType>::PlotFrame(std::pair<std::size_t, std::size_t> dimensions,
+                                            std::pair<std::size_t, std::size_t> position, 
+                                            HorizontalScalingMode horizontal_scale_mode):
+        m_dimensions(dimensions),
+        m_position(position),
+        m_horizontal_scale_mode(horizontal_scale_mode)
+{
+}
+
+template <typename PlotScalarType>
+inline auto PlotFrame<PlotScalarType>::update_data(const ContainerType &data)
+{
+    const auto [max_x, max_y] = std::ranges::fold_right(data,
+                                                    DataPointType{std::numeric_limits<PlotScalarType>::min(),
+                                                                std::numeric_limits<PlotScalarType>::min()},
+                                                    [](auto foldin, auto maxs)
+                                                    { return DataPointType{std::max(maxs.first, foldin.first),
+                                                                            std::max(maxs.second, foldin.second)}; });
+    const auto [min_x, min_y] = std::ranges::fold_right(data,
+                                                    DataPointType{std::numeric_limits<PlotScalarType>::max(),
+                                                                std::numeric_limits<PlotScalarType>::max()},
+                                                    [](auto foldin, auto maxs)
+                                                    { return DataPointType{std::min(maxs.first, foldin.first),
+                                                                            std::min(maxs.second, foldin.second)}; });
+
+    m_vertex_buffer = std::vector<sf::Vertex>(data.size());
+    auto frame_height = static_cast<float>(m_dimensions.second);
+    auto frame_width = static_cast<float>(m_dimensions.first);
+
+    for (const auto& [index, data_pair]: std::views::enumerate(data))
+    {
+
+        if (m_horizontal_scale_mode == HorizontalScalingMode::FIT_TO_MINIMUM)
+        {
+            auto x_ratio = static_cast<float>(max_x - min_x);
+            m_vertex_buffer[index].position.x = (static_cast<float>(data_pair.first - min_x) / x_ratio) * frame_width;
+        }
+        else
+        {
+            m_vertex_buffer[index].position.x = (static_cast<float>(data_pair.first) / max_x) * frame_width;
+        }
+
+        m_vertex_buffer[index].position.x += m_position.first;
+
+        m_vertex_buffer[index].position.y = 
+                            frame_height - ((static_cast<float>(data_pair.second) / static_cast<float>(max_y)) * frame_height) - m_position.second;
+    }
+}

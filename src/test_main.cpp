@@ -8,7 +8,7 @@ int main(int argc, const char *argv[])
     using PlotType = PlotFrame<int>;
     using PlotWindowType = PlotWindow<PlotType>;
 
-    auto plot = PlotType{640, 480};
+    auto plot = PlotType{{300, 300}, {50, 50}, PlotType::HorizontalScalingMode::FIT_TO_MINIMUM};
     auto win = PlotWindowType{plot};
     auto data = PlotType::ContainerType{};
 
