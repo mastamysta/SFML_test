@@ -27,10 +27,12 @@ namespace dash_components
             FIT_TO_MINIMUM,
             FIT_TO_ORIGIN
         };
+        
+        PlotFrame();
 
         PlotFrame(std::pair<std::size_t, std::size_t>,
-                std::pair<std::size_t, std::size_t>,
-                HorizontalScalingMode);
+                  std::pair<std::size_t, std::size_t>,
+                  HorizontalScalingMode);
 
         PlotFrame(const PlotFrame &) = delete;
 
@@ -51,10 +53,18 @@ namespace dash_components
 
         void draw(sf::RenderTarget& target, sf::RenderStates states) const override final
         {
-            std::println("Printing stuff!");
             target.draw(m_vertex_buffer.data(), m_vertex_buffer.size(), sf::PrimitiveType::Points);
         }
     };
+
+    template <typename PlotScalarType>
+    inline PlotFrame<PlotScalarType>::PlotFrame():
+            m_dimensions({300, 300}),
+            m_position(50, 950),
+            m_horizontal_scale_mode(HorizontalScalingMode::FIT_TO_ORIGIN),
+            m_data_updated(false)
+    {
+    }
 
     template <typename PlotScalarType>
     inline PlotFrame<PlotScalarType>::PlotFrame(std::pair<std::size_t, std::size_t> dimensions,

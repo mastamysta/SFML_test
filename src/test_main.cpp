@@ -3,19 +3,22 @@
 #include "DashboardWindow.hpp"
 #include "PlotFrame.hpp"
 
+#include <functional>
+
 using namespace dash_components;
+
 
 int main(int argc, const char *argv[])
 {
+
     using PlotType = PlotFrame<int>;
 
     auto win_size = std::pair<std::size_t, std::size_t>{1000, 1000};
-    auto win = PlotWindow{win_size};
+    auto win = DashBoardWindow<PlotType>{win_size};
     auto plot_size = std::pair<std::size_t, std::size_t>{300, 300};
     auto plot_pos = std::pair<std::size_t, std::size_t>{50, 50};
-    auto& plot = win.get_plot_frame<int>(plot_size, 
-                                        plot_pos, 
-                                        PlotType::HorizontalScalingMode::FIT_TO_MINIMUM);
+
+    auto &plot = win.get_graphical_element<0>();
 
     auto data = PlotType::ContainerType{};
         

@@ -10,13 +10,13 @@
 namespace dash_components
 {
 
-    class PlotWindow
+    template <typename... GraphicalElementTypes>
+    class DashBoardWindow
     {
     private:
 
         sf::RenderWindow m_window;
         std::pair<std::size_t, std::size_t> m_dimensions;
-        std::vector<StatefulDrawable*> m_graphical_elems;
 
         auto handle_events()
         {
@@ -32,25 +32,64 @@ namespace dash_components
 
         auto update_state(sf::Time delta_time)
         {
-            // Some procedures about the internal state of our GUI.
-            for (auto& elem: m_graphical_elems)
-                elem->update_state();
+            auto update_state = [](auto& graphical_element)
+            {
+                graphical_element.update_state();
+            };
+
+            do_on_graphical_elements(update_state);
         }
 
         auto render()
         {
             m_window.clear();
 
-            for (const auto& elem: m_graphical_elems)
-                m_window.draw(*elem);
+            auto draw = [&](auto& graphical_element)
+            {
+                m_window.draw(graphical_element);
+            };
+
+            do_on_graphical_elements(draw);
 
             m_window.display();
         }
 
-    public:
-        PlotWindow(std::pair<std::size_t, std::size_t>);
+        template <int I, typename... Ts>
+        struct type_at_index;
 
-        PlotWindow(const PlotWindow &) = delete;
+        template <int I, typename T, typename... Ts>
+        struct type_at_index<I, T, Ts...>
+        {
+            using type = typename type_at_index<I - 1, Ts...>::type;
+        };
+
+        template <typename T, typename... Ts>
+        struct type_at_index<0, T, Ts...>
+        {
+            using type = T;
+        };
+
+        auto do_on_graphical_elements(auto callable) -> void
+        {
+            do_on_graphical_elements_impl<sizeof...(GraphicalElementTypes)-1>(callable);
+        }
+
+        template <std::size_t I>
+        auto do_on_graphical_elements_impl(auto callable) -> void
+        {
+            callable(get_graphical_element<I>());
+
+            if constexpr (I == 0)
+                return;
+            else
+                do_on_graphical_elements_impl<I - 1>(callable);
+        }
+
+
+    public:
+        DashBoardWindow(std::pair<std::size_t, std::size_t>);
+
+        DashBoardWindow(const DashBoardWindow &) = delete;
 
         auto run()
         {   
@@ -64,25 +103,20 @@ namespace dash_components
             }
         }
 
-        // We basically want the window to own the plot frame and tear them down at exit...
-        template <typename T>
-        auto& get_plot_frame(std::pair<std::size_t, std::size_t> dimensions,
-                            std::pair<std::size_t, std::size_t> position, 
-                            PlotFrame<T>::HorizontalScalingMode horizontal_scale_mode)
+        template <int I>
+        auto& get_graphical_element()
         {
-            auto plot_frame = new PlotFrame<T>(dimensions, 
-                                                std::pair{position.first, m_dimensions.second - position.second},
-                                                horizontal_scale_mode);
-            m_graphical_elems.push_back(plot_frame);
-            return *plot_frame;
+            static auto graphical_element = typename type_at_index<I, GraphicalElementTypes...>::type{};
+            return graphical_element;
         }
     };
 
-
-    PlotWindow::PlotWindow(std::pair<std::size_t, std::size_t> dimensions): 
-                    m_dimensions(dimensions),
-                    m_graphical_elems({})
+    template <typename... GraphicalElementTypes>
+    DashBoardWindow<GraphicalElementTypes...>::DashBoardWindow(std::pair<std::size_t, std::size_t> dimensions): 
+                    m_dimensions(dimensions)
     {
+        // setup_graphical_elements<GraphicalElementTypes...>();
+
         auto run_wrapper = [this]()
         {
             m_window = sf::RenderWindow{sf::VideoMode({static_cast<unsigned>(m_dimensions.first), 
