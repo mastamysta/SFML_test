@@ -17,6 +17,7 @@ namespace dash_components
 
         sf::RenderWindow m_window;
         std::pair<std::size_t, std::size_t> m_dimensions;
+        bool m_window_size_changed;
 
         auto handle_events()
         {
@@ -30,8 +31,27 @@ namespace dash_components
             }
         }
 
+        auto push_updated_window_size()
+        {
+            sf::Vector2u win_size = m_window.getSize();
+            std::pair<std::size_t, std::size_t> win_size_p = {win_size.x, win_size.y};
+
+            auto update_winsize = [&](auto &graphical_element)
+            {
+                graphical_element.set_parent_dimensions(win_size_p);
+            };
+
+            do_on_graphical_elements(update_winsize);
+        }
+
         auto update_state(sf::Time delta_time)
         {
+            if (m_window_size_changed)
+            {
+                push_updated_window_size();
+                m_window_size_changed = false;
+            }
+
             auto update_state = [](auto& graphical_element)
             {
                 graphical_element.update_state();
@@ -113,10 +133,9 @@ namespace dash_components
 
     template <typename... GraphicalElementTypes>
     DashBoardWindow<GraphicalElementTypes...>::DashBoardWindow(std::pair<std::size_t, std::size_t> dimensions): 
-                    m_dimensions(dimensions)
+                    m_dimensions(dimensions),
+                    m_window_size_changed(true)
     {
-        // setup_graphical_elements<GraphicalElementTypes...>();
-
         auto run_wrapper = [this]()
         {
             m_window = sf::RenderWindow{sf::VideoMode({static_cast<unsigned>(m_dimensions.first), 

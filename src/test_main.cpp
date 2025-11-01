@@ -15,10 +15,11 @@ int main(int argc, const char *argv[])
 
     auto win_size = std::pair<std::size_t, std::size_t>{1000, 1000};
     auto win = DashBoardWindow<PlotType>{win_size};
-    auto plot_size = std::pair<std::size_t, std::size_t>{300, 300};
-    auto plot_pos = std::pair<std::size_t, std::size_t>{50, 50};
 
     auto &plot = win.get_graphical_element<0>();
+    plot.set_dimensions({300, 300});
+    plot.set_position({50, 50});
+    plot.set_horizontal_scaling_mode(PlotType::HorizontalScalingMode::FIT_TO_MINIMUM);
 
     auto data = PlotType::ContainerType{};
         

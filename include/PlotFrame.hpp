@@ -10,13 +10,13 @@
 #include <cstddef>
 #include <print>
 
-#include "StatefulDrawable.hpp"
+#include "RectangularDrawable.hpp"
 
 namespace dash_components
 {
 
     template <typename PlotScalarType>
-    class PlotFrame: public StatefulDrawable
+    class PlotFrame: public RectangularDrawable
     {
     public:
         using DataPointType = std::pair<PlotScalarType, PlotScalarType>;
@@ -27,14 +27,21 @@ namespace dash_components
             FIT_TO_MINIMUM,
             FIT_TO_ORIGIN
         };
+
         
         PlotFrame();
 
-        PlotFrame(std::pair<std::size_t, std::size_t>,
-                  std::pair<std::size_t, std::size_t>,
-                  HorizontalScalingMode);
-
         PlotFrame(const PlotFrame &) = delete;
+
+        PlotFrame operator=(const PlotFrame &) = delete;
+
+        PlotFrame(PlotFrame &&) = delete;
+
+        PlotFrame operator=(PlotFrame &&) = delete;
+
+        ~PlotFrame() = default;
+
+        auto set_horizontal_scaling_mode(const HorizontalScalingMode&) -> void;
 
         auto update_state() -> void;
 
@@ -42,8 +49,6 @@ namespace dash_components
 
 
     private:
-        std::pair<std::size_t, std::size_t> m_dimensions;
-        std::pair<std::size_t, std::size_t> m_position;
         HorizontalScalingMode m_horizontal_scale_mode;
 
         std::vector<sf::Vertex> m_vertex_buffer;    // Actual vertices to render.
@@ -59,22 +64,15 @@ namespace dash_components
 
     template <typename PlotScalarType>
     inline PlotFrame<PlotScalarType>::PlotFrame():
-            m_dimensions({300, 300}),
-            m_position(50, 950),
             m_horizontal_scale_mode(HorizontalScalingMode::FIT_TO_ORIGIN),
             m_data_updated(false)
     {
     }
 
     template <typename PlotScalarType>
-    inline PlotFrame<PlotScalarType>::PlotFrame(std::pair<std::size_t, std::size_t> dimensions,
-                                                std::pair<std::size_t, std::size_t> position, 
-                                                HorizontalScalingMode horizontal_scale_mode):
-            m_dimensions(dimensions),
-            m_position(position),
-            m_horizontal_scale_mode(horizontal_scale_mode),
-            m_data_updated(false)
+    auto PlotFrame<PlotScalarType>::set_horizontal_scaling_mode(const HorizontalScalingMode& mode) -> void
     {
+        m_horizontal_scale_mode = mode;
     }
 
     template <typename PlotScalarType>
